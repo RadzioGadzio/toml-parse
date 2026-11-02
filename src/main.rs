@@ -1,10 +1,6 @@
 use std::env::args;
 
-use crate::{args::AppArgs, error::AppError};
-
-mod args;
-mod error;
-mod tests;
+use ini_parse::{AppArgs, AppError};
 
 fn main() {
     match run() {

@@ -1,14 +1,14 @@
-use std::{iter::Peekable, path::Path, vec::IntoIter};
+use std::path::Path;
 
 use crate::error::AppError;
 
 #[derive(Debug)]
 pub struct AppArgs<'a> {
     pub path: &'a Path,
-    pub lookups: Peekable<IntoIter<Lookup<'a>>>,
+    pub lookups: Vec<Lookup<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Lookup<'a> {
     pub section: Option<&'a str>,
     pub key: &'a str,
@@ -20,16 +20,20 @@ impl<'a> AppArgs<'a> {
 
         let path = args
             .next()
-            .ok_or(AppError::InvalidArgs("Missing file path"))?;
+            .ok_or(AppError::InvalidArgs("missing file path"))?;
 
         let lookups = args
             .map(String::as_str)
             .map(Lookup::parse)
             .collect::<Result<Vec<_>, _>>()?;
 
+        if lookups.is_empty() {
+            return Err(AppError::InvalidArgs("missing lookup"));
+        }
+
         Ok(AppArgs {
             path: Path::new(path),
-            lookups: lookups.into_iter().peekable(),
+            lookups,
         })
     }
 }
@@ -41,7 +45,7 @@ impl<'a> Lookup<'a> {
             None => (None, arg),
         };
         if key.is_empty() || section == Some("") {
-            return Err(AppError::InvalidArgs("Empty section or key"));
+            return Err(AppError::InvalidArgs("empty section or key"));
         }
         Ok(Lookup { section, key })
     }
