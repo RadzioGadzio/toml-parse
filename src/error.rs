@@ -7,7 +7,6 @@ pub enum AppError {
         cause: std::io::Error,
     },
     Parse {
-        path: PathBuf,
         line: usize,
         message: &'static str,
     },
@@ -17,11 +16,7 @@ pub enum AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AppError::Parse {
-                path,
-                line,
-                message,
-            } => write!(f, "{}, {}:{}", message, path.display(), line),
+            AppError::Parse { line, message } => write!(f, "Parse error at {}: {}", line, message),
             AppError::FileRead { path, cause } => {
                 write!(f, "failed to read file {}: {}", path.display(), cause)
             }
