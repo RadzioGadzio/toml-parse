@@ -1,6 +1,9 @@
 use std::{fs, path::Path};
 
-use crate::{error::AppError, parser::parse};
+use crate::{
+    error::AppError,
+    parser::{ParseError, parse},
+};
 
 #[derive(Debug)]
 pub struct Config<'a> {
@@ -23,7 +26,7 @@ impl<'a> Config<'a> {
         Ok(content)
     }
 
-    pub fn parse(src: &'a str) -> Result<Config<'a>, AppError> {
+    pub fn parse(src: &'a str) -> Result<Config<'a>, ParseError> {
         Ok(Config {
             sections: parse(src)?,
         })
