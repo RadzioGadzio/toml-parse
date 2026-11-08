@@ -54,9 +54,6 @@ pub fn parse(src: &str) -> Result<Vec<Section<'_>>, ParseError> {
         })?;
         let key = key.trim();
         let mut value = value.trim();
-        // Removes any inline comments
-        value = value.split_once(';').map_or(value, |v| v.0.trim());
-        value = value.split_once('#').map_or(value, |v| v.0.trim());
 
         if key.is_empty() {
             return Err(ParseError {
@@ -91,4 +88,208 @@ pub fn parse(src: &str) -> Result<Vec<Section<'_>>, ParseError> {
     sections.retain(|s| s.name.is_some() || !s.entries.is_empty());
 
     Ok(sections)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sections_and_keys() {
+        let got = parse(
+            "
+        [a]
+        x = 1
+        y = 2
+        [b]
+        z = 3
+        ",
+        )
+        .unwrap();
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].name, Some("a"));
+        assert_eq!(got[0].entries, vec![("x", "1"), ("y", "2")]);
+        assert_eq!(got[1].name, Some("b"));
+        assert_eq!(got[1].entries, vec![("z", "3"),]);
+    }
+
+    #[test]
+    fn global_keys() {
+        let got = parse(
+            "
+        x = 1
+        [a]
+        y = 2
+        ",
+        )
+        .unwrap();
+
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].name, None);
+        assert_eq!(got[0].entries, vec![("x", "1"),]);
+        assert_eq!(got[1].name, Some("a"));
+        assert_eq!(got[1].entries, vec![("y", "2"),])
+    }
+
+    #[test]
+    fn strips_comments() {
+        let got = parse(
+            "
+        # Comment 1
+        ; Comment 2
+        x = 0
+        y = 1 # Some comment
+        z = 2 ; Some other comment
+        ",
+        )
+        .unwrap();
+
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].entries, vec![("x", "0"), ("y", "1"), ("z", "2"),])
+    }
+
+    #[test]
+    fn repeated_section_is_merged() {
+        let got = parse(
+            "
+      [a]
+      x=1
+      [b]
+      y=2
+      [a]
+      z=3
+      ",
+        )
+        .unwrap();
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].name, Some("a"));
+        assert_eq!(got[0].entries, vec![("x", "1"), ("z", "3"),])
+    }
+
+    #[test]
+    fn same_key_in_different_sections() {
+        assert!(
+            parse(
+                "
+        [a]
+        x = 1
+        [b]
+        x = 2
+        "
+            )
+            .is_ok()
+        )
+    }
+
+    #[test]
+    fn key_errors() {
+        assert_eq!(
+            parse(
+                "
+          x = 1
+          error
+          ",
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 2,
+                message: "expected 'key = value'"
+            }
+        );
+
+        assert_eq!(
+            parse(
+                "
+            = 2
+            "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 1,
+                message: "empty key"
+            }
+        );
+    }
+
+    #[test]
+    fn value_errors() {
+        assert_eq!(
+            parse(
+                "
+          x = a=b
+          "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 1,
+                message: "value cannot contain '='"
+            }
+        );
+    }
+
+    #[test]
+    fn header_errors() {
+        assert_eq!(
+            parse(
+                "
+        [a
+        x = 0
+        "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 1,
+                message: "unclosed section header"
+            }
+        );
+        assert_eq!(
+            parse(
+                "
+        []
+        x = 0
+        "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 1,
+                message: "empty section name"
+            }
+        );
+    }
+
+    #[test]
+    fn duplicate_key_errors() {
+        assert_eq!(
+            parse(
+                "
+          [a]
+          x = 1
+          x = 2
+          "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 3,
+                message: "duplicate key"
+            }
+        );
+
+        assert_eq!(
+            parse(
+                "
+        [a]
+        x = 1
+        [b]
+        y = 2
+        [a]
+        x = 3
+        "
+            )
+            .unwrap_err(),
+            ParseError {
+                line: 6,
+                message: "duplicate key"
+            }
+        );
+    }
 }
