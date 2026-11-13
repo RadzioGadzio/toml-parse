@@ -41,7 +41,7 @@ impl<'a> Config<'a> {
                 (None, None) => true,
                 _ => false,
             })
-            .find_map(|s| s.entries.iter().find(|(k, v)| *k == key).map(|(_, v)| *v))
+            .find_map(|s| s.entries.iter().find(|(k, _)| *k == key).map(|(_, v)| *v))
     }
 
     pub fn get_parsed<T: std::str::FromStr>(
@@ -49,7 +49,7 @@ impl<'a> Config<'a> {
         section: Option<&str>,
         key: &str,
     ) -> Option<Result<T, T::Err>> {
-        todo!()
+        self.get(section, key).map(|value| value.parse())
     }
 }
 

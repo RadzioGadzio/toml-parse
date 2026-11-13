@@ -5,6 +5,8 @@ use crate::error::AppError;
 #[derive(Debug)]
 pub struct AppArgs<'a> {
     pub path: &'a Path,
+    pub new_line: bool,
+    pub separator: char,
     pub lookups: Vec<Lookup<'a>>,
 }
 
@@ -17,6 +19,26 @@ pub struct Lookup<'a> {
 impl<'a> AppArgs<'a> {
     pub fn new(args: &'a [String]) -> Result<AppArgs<'a>, AppError> {
         let mut args = args.into_iter().peekable();
+
+        let mut new_line = false;
+        let mut separator = ' ';
+
+        while let Some(arg) = args.next_if(|arg| arg.starts_with('-')) {
+            let arg = arg.trim_start_matches('-');
+            if arg == "new-line" {
+                new_line = true
+            }
+            if arg == "sep"
+                && let Some(next_arg) = args.peek()
+            {
+                let ch = next_arg.chars().nth(0);
+                if let Some(ch) = ch {
+                    separator = ch;
+                }
+
+                args.next();
+            }
+        }
 
         let path = args
             .next()
@@ -33,6 +55,8 @@ impl<'a> AppArgs<'a> {
 
         Ok(AppArgs {
             path: Path::new(path),
+            new_line,
+            separator,
             lookups,
         })
     }
